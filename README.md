@@ -35,7 +35,7 @@ An automated bot for Unich airdrop platform that handles mining, task completion
    pip install -r requirements.txt
    ```
 
-   If `requirements.txt`or install manually:
+   or install manually:
    ```bash
    pip install aiohttp aiohttp-socks colorama pytz
    ```
@@ -86,7 +86,7 @@ http://proxy2.example.com:3128
 
 1. **Run the bot**
    ```bash
-   python bot__38_.py
+   python bot.py
    ```
 
 2. **Select proxy mode**
