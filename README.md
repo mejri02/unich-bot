@@ -35,7 +35,7 @@ An automated bot for Unich airdrop platform that handles mining, task completion
    pip install -r requirements.txt
    ```
 
-   or, install manually:
+   If `requirements.txt`or install manually:
    ```bash
    pip install aiohttp aiohttp-socks colorama pytz
    ```
@@ -47,12 +47,12 @@ An automated bot for Unich airdrop platform that handles mining, task completion
 1. Visit [Unich Airdrop](https://unich.com/en/airdrop/sign-up?ref=3X1BES)
 2. Sign up or log in to your account
 3. Open browser Developer Tools (F12)
-4. Go to the **Console** tab
-5. Type the following command and press Enter:
-   ```javascript
-   localStorage.getItem('token')
-   ```
-6. Copy the token value (without quotes)
+4. Go to the **Network** tab
+5. Refresh the page or perform any action on the site
+6. Look for API requests to `api.unich.com`
+7. Click on any request and go to the **Headers** section
+8. Find the **Authorization** header in the Request Headers
+9. Copy the token value after `Bearer ` (without "Bearer " prefix)
 
 ### 2. Setup Token File
 
@@ -229,3 +229,4 @@ If you encounter any issues or have questions:
 **Star ⭐ this repository if you find it helpful!**
 
 Made with ❤️ by [mejri02](https://github.com/mejri02)
+
