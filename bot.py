@@ -269,9 +269,7 @@ class UnichBot:
             filled = int(bars * elapsed / minutes)
             bar = '█' * filled + '░' * (bars - filled)
             next_time = datetime.fromtimestamp(datetime.now().timestamp() + (remaining * 60)).strftime('%H:%M:%S')
-            total_points = self.total_stats['earned']
-            total_tasks = self.total_stats['completed']
-            print(f"\r{Fore.BLUE}⏳ COOLDOWN: [{bar}] {percentage}% | NEXT: {next_time} | {remaining:2d} MIN | 💰 {total_points} PTS | ✅ {total_tasks} TASKS{Style.RESET_ALL}", end='', flush=True)
+            print(f"\r{Fore.BLUE}⏳ COOLDOWN: [{bar}] {percentage}% | NEXT: {next_time} | {remaining:2d} MIN{Style.RESET_ALL}", end='', flush=True)
             time.sleep(60)
         print()
     
