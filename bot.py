@@ -1,717 +1,347 @@
-from aiohttp import (
-    ClientResponseError,
-    ClientSession,
-    ClientTimeout,
-    BasicAuth
-)
-from aiohttp_socks import ProxyConnector
-from base64 import urlsafe_b64decode
+import requests
+import time
+import json
+import random
+import sys
+import os
 from datetime import datetime
-from colorama import *
-import asyncio, random, time, json, re, os, pytz
+from colorama import init, Fore, Back, Style
+from threading import Thread
 
-wib = pytz.timezone('Asia/Jakarta')
+init(autoreset=True)
 
-class Unich:
-    def __init__(self) -> None:
-        self.BASE_API = "https://api.unich.com/airdrop/user/v1"
-        self.REF_CODE = "3X1BES"
-        self.HEADERS = {}
+BANNER = f"""
+{Fore.MAGENTA}{Back.BLACK}╔════════════════════════════════════════════════════════════════════════════════════╗{Style.RESET_ALL}
+{Fore.MAGENTA}{Back.BLACK}║                                                                                    ║{Style.RESET_ALL}
+{Fore.MAGENTA}{Back.BLACK}║{Fore.CYAN}{Back.BLACK}                      ██╗   ██╗███╗   ██╗██╗ ██████╗██╗  ██╗                    {Fore.MAGENTA}{Back.BLACK}║{Style.RESET_ALL}
+{Fore.MAGENTA}{Back.BLACK}║{Fore.CYAN}{Back.BLACK}                      ██║   ██║████╗  ██║██║██╔════╝██║  ██║                    {Fore.MAGENTA}{Back.BLACK}║{Style.RESET_ALL}
+{Fore.MAGENTA}{Back.BLACK}║{Fore.CYAN}{Back.BLACK}                      ██║   ██║██╔██╗ ██║██║██║     ███████║                    {Fore.MAGENTA}{Back.BLACK}║{Style.RESET_ALL}
+{Fore.MAGENTA}{Back.BLACK}║{Fore.CYAN}{Back.BLACK}                      ██║   ██║██║╚██╗██║██║██║     ██╔══██║                    {Fore.MAGENTA}{Back.BLACK}║{Style.RESET_ALL}
+{Fore.MAGENTA}{Back.BLACK}║{Fore.CYAN}{Back.BLACK}                      ╚██████╔╝██║ ╚████║██║╚██████╗██║  ██║                    {Fore.MAGENTA}{Back.BLACK}║{Style.RESET_ALL}
+{Fore.MAGENTA}{Back.BLACK}║{Fore.CYAN}{Back.BLACK}                       ╚═════╝ ╚═╝  ╚═══╝╚═╝ ╚═════╝╚═╝  ╚═╝                    {Fore.MAGENTA}{Back.BLACK}║{Style.RESET_ALL}
+{Fore.MAGENTA}{Back.BLACK}║                                                                                    ║{Style.RESET_ALL}
+{Fore.MAGENTA}{Back.BLACK}║{Fore.YELLOW}{Back.BLACK}                      ╔══════════════════════════════════════╗                {Fore.MAGENTA}{Back.BLACK}║{Style.RESET_ALL}
+{Fore.MAGENTA}{Back.BLACK}║{Fore.YELLOW}{Back.BLACK}                      ║     UNICH AUTO MINER v2.0           ║                {Fore.MAGENTA}{Back.BLACK}║{Style.RESET_ALL}
+{Fore.MAGENTA}{Back.BLACK}║{Fore.YELLOW}{Back.BLACK}                      ║     ████████████████████████████    ║                {Fore.MAGENTA}{Back.BLACK}║{Style.RESET_ALL}
+{Fore.MAGENTA}{Back.BLACK}║{Fore.YELLOW}{Back.BLACK}                      ╚══════════════════════════════════════╝                {Fore.MAGENTA}{Back.BLACK}║{Style.RESET_ALL}
+{Fore.MAGENTA}{Back.BLACK}║                                                                                    ║{Style.RESET_ALL}
+{Fore.MAGENTA}{Back.BLACK}║{Fore.GREEN}{Back.BLACK}                      ╔══════════════════════════════════════╗                {Fore.MAGENTA}{Back.BLACK}║{Style.RESET_ALL}
+{Fore.MAGENTA}{Back.BLACK}║{Fore.GREEN}{Back.BLACK}                      ║  👑 DEVELOPED BY: MEJRI02           ║                {Fore.MAGENTA}{Back.BLACK}║{Style.RESET_ALL}
+{Fore.MAGENTA}{Back.BLACK}║{Fore.GREEN}{Back.BLACK}                      ║  🔗 GITHUB: mejri02/unich-bot       ║                {Fore.MAGENTA}{Back.BLACK}║{Style.RESET_ALL}
+{Fore.MAGENTA}{Back.BLACK}║{Fore.GREEN}{Back.BLACK}                      ║  💎 TELEGRAM: @mejri02_ch           ║                {Fore.MAGENTA}{Back.BLACK}║{Style.RESET_ALL}
+{Fore.MAGENTA}{Back.BLACK}║{Fore.GREEN}{Back.BLACK}                      ╚══════════════════════════════════════╝                {Fore.MAGENTA}{Back.BLACK}║{Style.RESET_ALL}
+{Fore.MAGENTA}{Back.BLACK}║                                                                                    ║{Style.RESET_ALL}
+{Fore.MAGENTA}{Back.BLACK}╚════════════════════════════════════════════════════════════════════════════════════╝{Style.RESET_ALL}
+"""
+
+USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1',
+    'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1',
+]
+
+class Logger:
+    @staticmethod
+    def _get_timestamp():
+        return f"{Fore.CYAN}{datetime.now().strftime('%H:%M:%S')}{Style.RESET_ALL}"
+    
+    @staticmethod
+    def info(message):
+        print(f"{Fore.WHITE}[{Logger._get_timestamp()}] {Fore.BLUE}➤{Style.RESET_ALL} {message}")
+    
+    @staticmethod
+    def error(message):
+        print(f"{Fore.WHITE}[{Logger._get_timestamp()}] {Fore.RED}✘{Style.RESET_ALL} {Fore.RED}{message}{Style.RESET_ALL}")
+    
+    @staticmethod
+    def warning(message):
+        print(f"{Fore.WHITE}[{Logger._get_timestamp()}] {Fore.YELLOW}⚠{Style.RESET_ALL} {Fore.YELLOW}{message}{Style.RESET_ALL}")
+    
+    @staticmethod
+    def success(message):
+        print(f"{Fore.WHITE}[{Logger._get_timestamp()}] {Fore.GREEN}✔{Style.RESET_ALL} {Fore.GREEN}{message}{Style.RESET_ALL}")
+    
+    @staticmethod
+    def mining(message):
+        print(f"{Fore.WHITE}[{Logger._get_timestamp()}] {Fore.CYAN}⛏{Style.RESET_ALL} {Fore.CYAN}{message}{Style.RESET_ALL}")
+    
+    @staticmethod
+    def task(message):
+        print(f"{Fore.WHITE}[{Logger._get_timestamp()}] {Fore.MAGENTA}📋{Style.RESET_ALL} {Fore.MAGENTA}{message}{Style.RESET_ALL}")
+    
+    @staticmethod
+    def point(message):
+        print(f"{Fore.WHITE}[{Logger._get_timestamp()}] {Fore.YELLOW}💎{Style.RESET_ALL} {Fore.YELLOW}{message}{Style.RESET_ALL}")
+
+log = Logger()
+
+class Config:
+    def __init__(self):
+        self.use_proxy = False
         self.proxies = []
-        self.proxy_index = 0
-        self.account_proxies = {}
-        self.sessions = {}
-        self.ua_index = 0
+        self.token_file = 'tokens.txt'
+        self.proxy_file = 'proxies.txt'
         
-        self.USER_AGENTS = [
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36 Edg/132.0.0.0",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 OPR/118.0.0.0",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Safari/605.1.15",
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (X11; Linux x86_64; rv:134.0) Gecko/20100101 Firefox/134.0",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36 OPR/118.0.0.0",
-            "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1",
-            "Mozilla/5.0 (Linux; Android 14; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Mobile Safari/537.36",
-            "Mozilla/5.0 (iPad; CPU OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1",
-            "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Mobile Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Whale/3.26.232.18 Safari/537.36"
-        ]
-
-    def clear_terminal(self):
-        os.system('cls' if os.name == 'nt' else 'clear')
-
-    def log(self, message):
-        print(
-            f"{Fore.CYAN + Style.BRIGHT}[ {datetime.now().astimezone(wib).strftime('%x %X %Z')} ]{Style.RESET_ALL}"
-            f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}{message}",
-            flush=True
-        )
-
-    def welcome(self):
-        print(
-            f"""
-        {Fore.GREEN + Style.BRIGHT}Unich {Fore.BLUE + Style.BRIGHT}Auto BOT
-            """
-            f"""
-        {Fore.GREEN + Style.BRIGHT}mejri02
-            """
-        )
-
-    def format_seconds(self, seconds):
-        hours, remainder = divmod(seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
-    
-    def load_tokens(self):
-        filename = "tokens.txt"
-        try:
-            with open(filename, 'r') as file:
-                tokens = [line.strip() for line in file if line.strip()]
-            return tokens
-        except Exception as e:
-            self.log(f"{Fore.RED + Style.BRIGHT}Failed To Load Tokens: {e}{Style.RESET_ALL}")
-            return None
-
     def load_proxies(self):
-        filename = "proxy.txt"
         try:
-            if not os.path.exists(filename):
-                self.log(f"{Fore.RED + Style.BRIGHT}File {filename} Not Found.{Style.RESET_ALL}")
-                return
-            with open(filename, 'r') as f:
-                self.proxies = [line.strip() for line in f.read().splitlines() if line.strip()]
-            
-            if not self.proxies:
-                self.log(f"{Fore.RED + Style.BRIGHT}No Proxies Found.{Style.RESET_ALL}")
-                return
-
-            self.log(
-                f"{Fore.GREEN + Style.BRIGHT}Proxies Total  : {Style.RESET_ALL}"
-                f"{Fore.WHITE + Style.BRIGHT}{len(self.proxies)}{Style.RESET_ALL}"
-            )
-        
-        except Exception as e:
-            self.log(f"{Fore.RED + Style.BRIGHT}Failed To Load Proxies: {e}{Style.RESET_ALL}")
-            self.proxies = []
-
-    def check_proxy_schemes(self, proxies):
-        schemes = ["http://", "https://", "socks4://", "socks5://"]
-        if any(proxies.startswith(scheme) for scheme in schemes):
-            return proxies
-        return f"http://{proxies}"
-    
-    def get_next_proxy_for_account(self, account):
-        if account not in self.account_proxies:
-            if not self.proxies:
-                return None
-            proxy = self.check_proxy_schemes(self.proxies[self.proxy_index])
-            self.account_proxies[account] = proxy
-            self.proxy_index = (self.proxy_index + 1) % len(self.proxies)
-        return self.account_proxies[account]
-
-    def rotate_proxy_for_account(self, account):
-        if not self.proxies:
-            return None
-        proxy = self.check_proxy_schemes(self.proxies[self.proxy_index])
-        self.account_proxies[account] = proxy
-        self.proxy_index = (self.proxy_index + 1) % len(self.proxies)
-        return proxy
-    
-    def build_proxy_config(self, proxy=None):
-        if not proxy:
-            return None, None, None
-
-        if proxy.startswith("socks"):
-            connector = ProxyConnector.from_url(proxy)
-            return connector, None, None
-
-        elif proxy.startswith("http"):
-            match = re.match(r"http://(.*?):(.*?)@(.*)", proxy)
-            if match:
-                username, password, host_port = match.groups()
-                clean_url = f"http://{host_port}"
-                auth = BasicAuth(username, password)
-                return None, clean_url, auth
-            else:
-                return None, proxy, None
-
-        raise Exception("Unsupported Proxy Type.")
-    
-    def get_next_user_agent(self):
-        ua = self.USER_AGENTS[self.ua_index]
-        self.ua_index = (self.ua_index + 1) % len(self.USER_AGENTS)
-        return ua
-    
-    def initialize_headers(self, token: str):
-        if token not in self.HEADERS:
-            self.HEADERS[token] = {
-                "Accept": "application/json, text/plain, */*",
-                "Accept-Encoding": "gzip, deflate, br",
-                "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
-                "Authorization": f"Bearer {token}",
-                "Cache-Control": "no-cache",
-                "Origin": "https://unich.com",
-                "Pragma": "no-cache",
-                "Referer": "https://unich.com",
-                "Sec-Fetch-Dest": "empty",
-                "Sec-Fetch-Mode": "cors",
-                "Sec-Fetch-Site": "same-site",
-                "User-Agent": self.get_next_user_agent()
-            }
-        return self.HEADERS[token]
-    
-    async def get_session(self, token: str, proxy_url=None, timeout=60):
-        if token not in self.sessions:
-            connector, proxy, proxy_auth = self.build_proxy_config(proxy_url)
-            
-            session = ClientSession(
-                connector=connector,
-                timeout=ClientTimeout(total=timeout)
-            )
-            
-            self.sessions[token] = {
-                'session': session,
-                'proxy': proxy,
-                'proxy_auth': proxy_auth
-            }
-        
-        return self.sessions[token]
-    
-    async def close_session(self, token: str):
-        if token in self.sessions:
-            await self.sessions[token]['session'].close()
-            del self.sessions[token]
-    
-    async def close_all_sessions(self):
-        for token in list(self.sessions.keys()):
-            await self.close_session(token)
-        
-    def decode_token(self, token: str):
-        try:
-            header, payload, signature = token.split(".")
-            decoded_payload = urlsafe_b64decode(payload + "==").decode("utf-8")
-            parsed_payload = json.loads(decoded_payload)
-            signed_at = parsed_payload["signedAt"]
-            
-            return signed_at
-        except Exception as e:
-            return None
-        
-    def check_token_status(self, signed_time: int):
-        try:
-            exp_time = signed_time + 864000000
-
-            current_time = int(time.time()) * 1000
-            
-            if current_time > exp_time:
-                return False
-
-            return True
-        except Exception as e:
-            return False
-    
-    def generate_random_username(self):
-        vowels = "aeiou"
-        consonants = "bcdfghjklmnpqrstvwxyz"
-        
-        username = []
-        for _ in range(8 // 2):
-            consonant = random.choice(consonants)
-            vowel = random.choice(vowels)
-            username.append(consonant)
-            username.append(vowel)
-        
-        return '@' + ''.join(username)
-    
-    def mask_account(self, account):
-        if '@' in account:
-            local, domain = account.split('@', 1)
-            hide_local = local[:3] + '*' * 3 + local[-3:]
-            return f"{hide_local}@{domain}"
-
-    def print_question(self):
-        while True:
-            try:
-                print(f"{Fore.WHITE + Style.BRIGHT}1. Run With Proxy{Style.RESET_ALL}")
-                print(f"{Fore.WHITE + Style.BRIGHT}2. Run Without Proxy{Style.RESET_ALL}")
-                proxy_choice = int(input(f"{Fore.BLUE + Style.BRIGHT}Choose [1/2] -> {Style.RESET_ALL}").strip())
-
-                if proxy_choice in [1, 2]:
-                    proxy_type = (
-                        "With" if proxy_choice == 1 else 
-                        "Without"
-                    )
-                    print(f"{Fore.GREEN + Style.BRIGHT}Run {proxy_type} Proxy Selected.{Style.RESET_ALL}")
-                    break
-                else:
-                    print(f"{Fore.RED + Style.BRIGHT}Please enter either 1 or 2.{Style.RESET_ALL}")
-            except ValueError:
-                print(f"{Fore.RED + Style.BRIGHT}Invalid input. Enter a number (1 or 2).{Style.RESET_ALL}")
-
-        rotate_proxy = False
-        if proxy_choice == 1:
-            while True:
-                rotate_proxy = input(f"{Fore.BLUE + Style.BRIGHT}Rotate Invalid Proxy? [y/n] -> {Style.RESET_ALL}").strip()
-
-                if rotate_proxy in ["y", "n"]:
-                    rotate_proxy = rotate_proxy == "y"
-                    break
-                else:
-                    print(f"{Fore.RED + Style.BRIGHT}Invalid input. Enter 'y' or 'n'.{Style.RESET_ALL}")
-
-        return proxy_choice, rotate_proxy
-    
-    async def ensure_ok(self, response):
-        if response.status >= 400:
-            error_text = await response.text()
-            raise Exception(f"HTTP {response.status}: {error_text}")
-    
-    async def check_connection(self, token: str, proxy_url=None):
-        url = "https://api.ipify.org?format=json"
-
-        try:
-            session_info = await self.get_session(token, proxy_url, 15)
-            session = session_info['session']
-            proxy = session_info['proxy']
-            proxy_auth = session_info['proxy_auth']
-            
-            async with session.get(
-                url=url, proxy=proxy, proxy_auth=proxy_auth
-            ) as response:
-                await self.ensure_ok(response)
-                return True
-        except (Exception, ClientResponseError) as e:
-            self.log(
-                f"{Fore.CYAN+Style.BRIGHT}Status :{Style.RESET_ALL}"
-                f"{Fore.RED+Style.BRIGHT} Connection Not 200 OK {Style.RESET_ALL}"
-                f"{Fore.MAGENTA+Style.BRIGHT}-{Style.RESET_ALL}"
-                f"{Fore.YELLOW+Style.BRIGHT} {str(e)} {Style.RESET_ALL}"
-            )
-        
-        return None
-    
-    async def my_info(self, token: str, proxy_url=None, retries=5):
-        url = f"{self.BASE_API}/info/my-info"
-        
-        for attempt in range(retries):
-            try:
-                session_info = await self.get_session(token, proxy_url)
-                session = session_info['session']
-                proxy = session_info['proxy']
-                proxy_auth = session_info['proxy_auth']
-
-                headers = self.initialize_headers(token)
-                
-                async with session.get(
-                    url=url, headers=headers, proxy=proxy, proxy_auth=proxy_auth
-                ) as response:
-                    await self.ensure_ok(response)
-                    result = await response.json()
-                    return result
-                    
-            except (Exception, ClientResponseError) as e:
-                if attempt < retries - 1:
-                    await asyncio.sleep(5)
-                    continue
-                self.log(
-                    f"{Fore.CYAN+Style.BRIGHT}Account:{Style.RESET_ALL}"
-                    f"{Fore.RED+Style.BRIGHT} Failed to Fetch Info {Style.RESET_ALL}"
-                    f"{Fore.MAGENTA+Style.BRIGHT}-{Style.RESET_ALL}"
-                    f"{Fore.YELLOW+Style.BRIGHT} {str(e)} {Style.RESET_ALL}"
-                )
-
-        return None
-    
-    async def apply_ref(self, token: str, proxy_url=None, retries=5):
-        url = f"{self.BASE_API}/ref/refer-sign-up"
-        payload = {"code": self.REF_CODE}
-        
-        for attempt in range(retries):
-            try:
-                session_info = await self.get_session(token, proxy_url)
-                session = session_info['session']
-                proxy = session_info['proxy']
-                proxy_auth = session_info['proxy_auth']
-
-                headers = self.initialize_headers(token)
-                headers["Content-Type"] = "application/json"
-                
-                async with session.post(
-                    url=url, headers=headers, json=payload, proxy=proxy, proxy_auth=proxy_auth
-                ) as response:
-                    if response.status == 400: return False
+            if os.path.exists(self.proxy_file):
+                with open(self.proxy_file, 'r') as f:
+                    self.proxies = [line.strip() for line in f.readlines() if line.strip()]
+                if self.proxies:
+                    log.success(f"✅ Loaded {len(self.proxies)} proxies")
                     return True
-                        
-            except (Exception, ClientResponseError) as e:
-                if attempt < retries - 1:
-                    await asyncio.sleep(5)
-                    continue
-                self.log(
-                    f"{Fore.CYAN+Style.BRIGHT}Refer  :{Style.RESET_ALL}"
-                    f"{Fore.RED+Style.BRIGHT} Failed to Apply Code {Style.RESET_ALL}"
-                    f"{Fore.MAGENTA+Style.BRIGHT}-{Style.RESET_ALL}"
-                    f"{Fore.YELLOW+Style.BRIGHT} {str(e)} {Style.RESET_ALL}"
-                )
-
-        return None
-    
-    async def recent_mining(self, token: str, proxy_url=None, retries=5):
-        url = f"{self.BASE_API}/mining/recent"
-        
-        for attempt in range(retries):
-            try:
-                session_info = await self.get_session(token, proxy_url)
-                session = session_info['session']
-                proxy = session_info['proxy']
-                proxy_auth = session_info['proxy_auth']
-
-                headers = self.initialize_headers(token)
-                
-                async with session.get(
-                    url=url, headers=headers, proxy=proxy, proxy_auth=proxy_auth
-                ) as response:
-                    await self.ensure_ok(response)
-                    result = await response.json()
-                    return result
-                        
-            except (Exception, ClientResponseError) as e:
-                if attempt < retries - 1:
-                    await asyncio.sleep(5)
-                    continue
-                self.log(
-                    f"{Fore.CYAN+Style.BRIGHT}Mining :{Style.RESET_ALL}"
-                    f"{Fore.RED+Style.BRIGHT} Failed to Fetch Status {Style.RESET_ALL}"
-                    f"{Fore.MAGENTA+Style.BRIGHT}-{Style.RESET_ALL}"
-                    f"{Fore.YELLOW+Style.BRIGHT} {str(e)} {Style.RESET_ALL}"
-                )
-
-        return None
-    
-    async def start_mining(self, token: str, proxy_url=None, retries=5):
-        url = f"{self.BASE_API}/mining/start"
-        
-        for attempt in range(retries):
-            try:
-                session_info = await self.get_session(token, proxy_url)
-                session = session_info['session']
-                proxy = session_info['proxy']
-                proxy_auth = session_info['proxy_auth']
-
-                headers = self.initialize_headers(token)
-                
-                async with session.post(
-                    url=url, headers=headers, proxy=proxy, proxy_auth=proxy_auth
-                ) as response:
-                    await self.ensure_ok(response)
-                    result = await response.json()
-                    return result
-                        
-            except (Exception, ClientResponseError) as e:
-                if attempt < retries - 1:
-                    await asyncio.sleep(5)
-                    continue
-                self.log(
-                    f"{Fore.CYAN+Style.BRIGHT}Mining :{Style.RESET_ALL}"
-                    f"{Fore.RED+Style.BRIGHT} Failed to Start {Style.RESET_ALL}"
-                    f"{Fore.MAGENTA+Style.BRIGHT}-{Style.RESET_ALL}"
-                    f"{Fore.YELLOW+Style.BRIGHT} {str(e)} {Style.RESET_ALL}"
-                )
-
-        return None
-    
-    async def task_lists(self, token: str, proxy_url=None, retries=5):
-        url = f"{self.BASE_API}/social/list-by-user"
-        
-        for attempt in range(retries):
-            try:
-                session_info = await self.get_session(token, proxy_url)
-                session = session_info['session']
-                proxy = session_info['proxy']
-                proxy_auth = session_info['proxy_auth']
-
-                headers = self.initialize_headers(token)
-                
-                async with session.get(
-                    url=url, headers=headers, proxy=proxy, proxy_auth=proxy_auth
-                ) as response:
-                    await self.ensure_ok(response)
-                    result = await response.json()
-                    return result
-                        
-            except (Exception, ClientResponseError) as e:
-                if attempt < retries - 1:
-                    await asyncio.sleep(5)
-                    continue
-                self.log(
-                    f"{Fore.CYAN+Style.BRIGHT}Tasks  :{Style.RESET_ALL}"
-                    f"{Fore.RED+Style.BRIGHT} Failed to Fetch Available Tasks {Style.RESET_ALL}"
-                    f"{Fore.MAGENTA+Style.BRIGHT}-{Style.RESET_ALL}"
-                    f"{Fore.YELLOW+Style.BRIGHT} {str(e)} {Style.RESET_ALL}"
-                )
-
-        return None
-    
-    async def complete_task(self, token: str, task_id: str, title: str, proxy_url=None, retries=5):
-        url = f"{self.BASE_API}/social/claim/{task_id}"
-        payload = {"evidence": self.generate_random_username()}
-        
-        for attempt in range(retries):
-            try:
-                session_info = await self.get_session(token, proxy_url)
-                session = session_info['session']
-                proxy = session_info['proxy']
-                proxy_auth = session_info['proxy_auth']
-
-                headers = self.initialize_headers(token)
-                headers["Content-Type"] = "application/json"
-                
-                async with session.post(
-                    url=url, headers=headers, json=payload, proxy=proxy, proxy_auth=proxy_auth
-                ) as response:
-                    await self.ensure_ok(response)
-                    result = await response.json()
-                    return result
-                        
-            except (Exception, ClientResponseError) as e:
-                if attempt < retries - 1:
-                    await asyncio.sleep(5)
-                    continue
-                self.log(
-                    f"{Fore.GREEN+Style.BRIGHT}   {Style.RESET_ALL}"
-                    f"{Fore.WHITE+Style.BRIGHT}{title}{Style.RESET_ALL}"
-                    f"{Fore.RED+Style.BRIGHT} Not Completed {Style.RESET_ALL}"
-                    f"{Fore.MAGENTA+Style.BRIGHT}-{Style.RESET_ALL}"
-                    f"{Fore.YELLOW+Style.BRIGHT} {str(e)} {Style.RESET_ALL}"
-                )
-
-        return None
-
-    async def process_check_connection(self, token: str, use_proxy: bool, rotate_proxy: bool):
-        while True:
-            proxy = self.get_next_proxy_for_account(token) if use_proxy else None
-            self.log(
-                f"{Fore.CYAN+Style.BRIGHT}Proxy  :{Style.RESET_ALL}"
-                f"{Fore.WHITE+Style.BRIGHT} {proxy} {Style.RESET_ALL}"
-            )
-
-            is_valid = await self.check_connection(token, proxy)
-            if is_valid: return True
-
-            if rotate_proxy:
-                await self.close_session(token)
-                proxy = self.rotate_proxy_for_account(token)
-                await asyncio.sleep(1)
-                continue
-
             return False
+        except:
+            return False
+    
+    def get_random_proxy(self):
+        if self.proxies:
+            proxy = random.choice(self.proxies)
+            return {'http': f'http://{proxy}', 'https': f'http://{proxy}'}
+        return None
 
-    async def process_accounts(self, token: str, use_proxy: bool, rotate_proxy: bool):
-        is_valid = await self.process_check_connection(token, use_proxy, rotate_proxy)
-        if is_valid:
-            proxy = self.get_next_proxy_for_account(token) if use_proxy else None
+config = Config()
 
-            account = await self.my_info(token, proxy)
-            if account:
+def setup_interface():
+    os.system('cls' if os.name == 'nt' else 'clear')
+    print(BANNER)
+    
+    print(f"\n{Fore.CYAN}{Back.BLACK}╔{'═'*60}╗{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{Back.BLACK}║{Fore.WHITE}{Back.BLACK}⚡ INITIALIZATION SETUP{Style.RESET_ALL}{Fore.CYAN}{Back.BLACK} {' ' * 38}║{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{Back.BLACK}╚{'═'*60}╝{Style.RESET_ALL}\n")
+    
+    while True:
+        proxy_choice = input(f"{Fore.YELLOW}❓ Use proxies? (y/n): {Style.RESET_ALL}").lower()
+        if proxy_choice in ['y', 'n']:
+            config.use_proxy = proxy_choice == 'y'
+            break
+    
+    if config.use_proxy:
+        if not config.load_proxies():
+            log.warning("No proxies.txt found. Creating template...")
+            with open('proxies.txt', 'w') as f:
+                f.write("# One proxy per line - format: ip:port or user:pass@ip:port\n")
+                f.write("# 127.0.0.1:8080\n")
+                f.write("# user:password@127.0.0.1:3128\n")
+            input(f"\n{Fore.GREEN}Press Enter to continue after adding proxies to proxies.txt...{Style.RESET_ALL}")
+            config.load_proxies()
+    
+    print(f"\n{Fore.CYAN}{'▰'*60}{Style.RESET_ALL}\n")
+    log.info(f"Configuration Complete")
+    log.info(f"📁 Tokens file: {config.token_file}")
+    if config.use_proxy:
+        log.info(f"🔒 Proxy: Enabled ({len(config.proxies)} proxies)")
+    else:
+        log.info(f"🔓 Proxy: Disabled")
+    time.sleep(2)
 
-                if account.get("code") == "OK":
-                    email = account.get("data", {}).get("email")
-                    balance = account.get("data", {}).get("mUn")
-
-                    await self.apply_ref(token, proxy)
-
-                    self.log(
-                        f"{Fore.CYAN+Style.BRIGHT}Account:{Style.RESET_ALL}"
-                        f"{Fore.WHITE+Style.BRIGHT} {self.mask_account(email)} {Style.RESET_ALL}"
-                    )
-                    self.log(
-                        f"{Fore.CYAN+Style.BRIGHT}Balance:{Style.RESET_ALL}"
-                        f"{Fore.WHITE+Style.BRIGHT} {balance} FD Points {Style.RESET_ALL}"
-                    )
-                
-                else:
-                    err_msg = account.get("message")
-                    self.log(
-                        f"{Fore.CYAN+Style.BRIGHT}Account:{Style.RESET_ALL}"
-                        f"{Fore.RED+Style.BRIGHT} Failed to Fetch Info {Style.RESET_ALL}"
-                        f"{Fore.MAGENTA+Style.BRIGHT}-{Style.RESET_ALL}"
-                        f"{Fore.YELLOW+Style.BRIGHT} {err_msg} {Style.RESET_ALL}"
-                    )
-
-            mining = await self.recent_mining(token, proxy)
-            if mining:
-
-                if mining.get("code") == "OK":
-                    is_mining = mining.get("data", {}).get("isMining")
-
-                    if not is_mining:
-                        start = await self.start_mining(token, proxy)
-                        if start:
-
-                            if start.get("code") == "OK":
-                                self.log(
-                                    f"{Fore.CYAN+Style.BRIGHT}Mining :{Style.RESET_ALL}"
-                                    f"{Fore.GREEN+Style.BRIGHT} Started Successfully {Style.RESET_ALL}"
-                                )
-
-                            else:
-                                err_msg = start.get("message")
-                                self.log(
-                                    f"{Fore.CYAN+Style.BRIGHT}Mining :{Style.RESET_ALL}"
-                                    f"{Fore.RED+Style.BRIGHT} Failed to Start {Style.RESET_ALL}"
-                                    f"{Fore.MAGENTA+Style.BRIGHT}-{Style.RESET_ALL}"
-                                    f"{Fore.YELLOW+Style.BRIGHT} {err_msg} {Style.RESET_ALL}"
-                                )
-
-                    else:
-                        self.log(
-                            f"{Fore.CYAN+Style.BRIGHT}Mining :{Style.RESET_ALL}"
-                            f"{Fore.YELLOW+Style.BRIGHT} Already Started {Style.RESET_ALL}"
-                        )
-                
-                else:
-                    err_msg = mining.get("message")
-                    self.log(
-                        f"{Fore.CYAN+Style.BRIGHT}Mining :{Style.RESET_ALL}"
-                        f"{Fore.RED+Style.BRIGHT} Failed to Fetch Status {Style.RESET_ALL}"
-                        f"{Fore.MAGENTA+Style.BRIGHT}-{Style.RESET_ALL}"
-                        f"{Fore.YELLOW+Style.BRIGHT} {err_msg} {Style.RESET_ALL}"
-                    )
-
-            task_lists = await self.task_lists(token, proxy)
-            if task_lists:
-
-                if task_lists.get("code") == "OK":
-                    self.log(f"{Fore.CYAN+Style.BRIGHT}Tasks  :{Style.RESET_ALL}")
-
-                    tasks = task_lists.get("data", {}).get("items", [])
-                    for task in tasks:
-                        task_id = task.get("id")
-                        title = task.get("title")
-                        reward = task.get("pointReward")
-                        is_claimed = task.get("claimed")
-
-                        if is_claimed:
-                            self.log(
-                                f"{Fore.MAGENTA+Style.BRIGHT}   {Style.RESET_ALL}"
-                                f"{Fore.WHITE+Style.BRIGHT}{title}{Style.RESET_ALL}"
-                                f"{Fore.YELLOW+Style.BRIGHT} Already Completed {Style.RESET_ALL}"
-                            )
-                            continue
-
-                        complete = await self.complete_task(token, task_id, title, proxy)
-                        if complete:
-
-                            if complete.get("code") == "OK":
-                                self.log(
-                                    f"{Fore.MAGENTA+Style.BRIGHT}   {Style.RESET_ALL}"
-                                    f"{Fore.WHITE+Style.BRIGHT}{title}{Style.RESET_ALL}"
-                                    f"{Fore.GREEN+Style.BRIGHT} Completed {Style.RESET_ALL}"
-                                    f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
-                                    f"{Fore.CYAN + Style.BRIGHT} Reward: {Style.RESET_ALL}"
-                                    f"{Fore.WHITE + Style.BRIGHT}{reward} FD Points{Style.RESET_ALL}"
-                                )
-                            else:
-                                err_msg = complete.get("message")
-                                self.log(
-                                    f"{Fore.GREEN+Style.BRIGHT}   {Style.RESET_ALL}"
-                                    f"{Fore.WHITE+Style.BRIGHT}{title}{Style.RESET_ALL}"
-                                    f"{Fore.RED+Style.BRIGHT} Not Completed {Style.RESET_ALL}"
-                                    f"{Fore.MAGENTA+Style.BRIGHT}-{Style.RESET_ALL}"
-                                    f"{Fore.YELLOW+Style.BRIGHT} {err_msg} {Style.RESET_ALL}"
-                                )
-                else:
-                    err_msg = task_lists.get("message")
-                    self.log(
-                        f"{Fore.CYAN+Style.BRIGHT}Tasks  :{Style.RESET_ALL}"
-                        f"{Fore.RED+Style.BRIGHT} Failed to Fetch Available Tasks {Style.RESET_ALL}"
-                        f"{Fore.MAGENTA+Style.BRIGHT}-{Style.RESET_ALL}"
-                        f"{Fore.YELLOW+Style.BRIGHT} {err_msg} {Style.RESET_ALL}"
-                    )
-            
-    async def main(self):
+class UnichBot:
+    def __init__(self):
+        self.base_url = 'https://api.unich.com'
+        self.stats = {'total_points': 0, 'tasks_completed': 0, 'mining_starts': 0}
+        
+    def random_headers(self, token):
+        return {
+            'Authorization': f'Bearer {token}',
+            'Content-Type': 'application/json',
+            'User-Agent': random.choice(USER_AGENTS),
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Origin': 'https://unich.com',
+            'Referer': 'https://unich.com/',
+            'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120"',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Ch-Ua-Platform': '"Windows"',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-site',
+            'Connection': 'keep-alive',
+        }
+    
+    def read_tokens(self):
         try:
-            tokens = self.load_tokens()
-            if not tokens: return
-
-            proxy_choice, rotate_proxy = self.print_question()
-
-            while True:
-                self.clear_terminal()
-                self.welcome()
-                self.log(
-                    f"{Fore.GREEN + Style.BRIGHT}Account's Total: {Style.RESET_ALL}"
-                    f"{Fore.WHITE + Style.BRIGHT}{len(tokens)}{Style.RESET_ALL}"
-                )
-
-                use_proxy = True if proxy_choice == 1 else False
-                if use_proxy: self.load_proxies()
-
-                separator = "=" * 25
-                for idx, token in enumerate(tokens, start=1):
-                    if token:
-                        self.log(
-                            f"{Fore.CYAN + Style.BRIGHT}{separator}[{Style.RESET_ALL}"
-                            f"{Fore.WHITE + Style.BRIGHT} {idx} {Style.RESET_ALL}"
-                            f"{Fore.CYAN + Style.BRIGHT}-{Style.RESET_ALL}"
-                            f"{Fore.WHITE + Style.BRIGHT} {len(tokens)} {Style.RESET_ALL}"
-                            f"{Fore.CYAN + Style.BRIGHT}]{separator}{Style.RESET_ALL}"
-                        )
-
-                        signed_time = self.decode_token(token)
-                        if not signed_time:
-                            self.log(
-                                f"{Fore.CYAN+Style.BRIGHT}Status :{Style.RESET_ALL}"
-                                f"{Fore.RED+Style.BRIGHT} Invalid Token Data {Style.RESET_ALL}"
-                            )
-                            continue
-
-                        is_valid = self.check_token_status(signed_time)
-                        if not is_valid:
-                            self.log(
-                                f"{Fore.CYAN+Style.BRIGHT}Status :{Style.RESET_ALL}"
-                                f"{Fore.RED+Style.BRIGHT} Token Already Expired {Style.RESET_ALL}"
-                            )
-                            continue
-                        
-                        await self.process_accounts(token, use_proxy, rotate_proxy)
-                        await asyncio.sleep(random.uniform(2.0, 3.0))
-
-                await self.close_all_sessions()
-
-                self.log(f"{Fore.CYAN + Style.BRIGHT}={Style.RESET_ALL}"*72)
-                
-                delay = 12 * 60 * 60
-                while delay > 0:
-                    formatted_time = self.format_seconds(delay)
-                    print(
-                        f"{Fore.CYAN+Style.BRIGHT}[ Wait for{Style.RESET_ALL}"
-                        f"{Fore.WHITE+Style.BRIGHT} {formatted_time} {Style.RESET_ALL}"
-                        f"{Fore.CYAN+Style.BRIGHT}... ]{Style.RESET_ALL}"
-                        f"{Fore.WHITE+Style.BRIGHT} | {Style.RESET_ALL}"
-                        f"{Fore.BLUE+Style.BRIGHT}All Accounts Have Been Processed...{Style.RESET_ALL}",
-                        end="\r",
-                        flush=True
-                    )
-                    await asyncio.sleep(1)
-                    delay -= 1
-
+            if not os.path.exists(config.token_file):
+                with open(config.token_file, 'w') as f:
+                    f.write("# Paste your tokens here - one per line\n")
+                    f.write("# eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\n")
+                log.error(f"❌ tokens.txt not found! Template created.")
+                return []
+            
+            with open(config.token_file, 'r') as f:
+                tokens = [line.strip() for line in f.readlines() 
+                         if line.strip() and not line.startswith('#')]
+            
+            valid_tokens = [t for t in tokens if len(t.split('.')) == 3]
+            
+            if valid_tokens:
+                log.success(f"✅ Loaded {len(valid_tokens)} accounts")
+            return valid_tokens
+            
         except Exception as e:
-            self.log(f"{Fore.RED+Style.BRIGHT}Error: {e}{Style.RESET_ALL}")
-            raise e
-        finally:
-            await self.close_all_sessions()
+            log.error(f"Token error: {str(e)}")
+            return []
+    
+    def make_request(self, method, url, token=None, json=None):
+        try:
+            headers = self.random_headers(token) if token else {'Content-Type': 'application/json'}
+            proxies = config.get_random_proxy() if config.use_proxy else None
+            
+            if method.upper() == 'GET':
+                response = requests.get(url, headers=headers, proxies=proxies, timeout=30)
+            else:
+                response = requests.post(url, headers=headers, json=json, proxies=proxies, timeout=30)
+            
+            if response.status_code == 200:
+                return response.json()
+            elif response.status_code == 401:
+                return {'error': 'unauthorized'}
+            return None
+            
+        except Exception as e:
+            if config.use_proxy:
+                log.warning(f"Proxy failed, retrying...")
+            return None
+    
+    def start_mining(self, token):
+        url = f"{self.base_url}/airdrop/user/v1/mining/start"
+        result = self.make_request('POST', url, token, {})
+        
+        if result and result.get('code') == 'OK':
+            self.stats['mining_starts'] += 1
+            log.mining(f"Mining activated")
+            return True
+        return False
+    
+    def get_mining_data(self, token):
+        url = f"{self.base_url}/airdrop/user/v1/mining/recent"
+        return self.make_request('GET', url, token)
+    
+    def get_tasks(self, token):
+        url = f"{self.base_url}/airdrop/user/v1/social/list-by-user"
+        return self.make_request('GET', url, token)
+    
+    def claim_task(self, token, task_id, task_name):
+        url = f"{self.base_url}/airdrop/user/v1/social/claim/{task_id}"
+        result = self.make_request('POST', url, token, {"evidence": task_id})
+        
+        if result and result.get('code') == 'OK':
+            reward = result.get('data', {}).get('pointReward', 0)
+            self.stats['tasks_completed'] += 1
+            self.stats['total_points'] += reward
+            log.point(f"+{reward} points • {task_name}")
+            return True
+        return False
+    
+    def print_stats(self):
+        print(f"\n{Fore.CYAN}{Back.BLACK}╔{'═'*50}╗{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}{Back.BLACK}║{Fore.WHITE}{Back.BLACK}📊 SESSION STATISTICS{Style.RESET_ALL}{Fore.CYAN}{Back.BLACK} {' ' * 31}║{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}{Back.BLACK}╠{'═'*50}╣{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}{Back.BLACK}║{Style.RESET_ALL}   💰 Total Points Earned: {Fore.GREEN}{self.stats['total_points']:,}{Style.RESET_ALL}               {Fore.CYAN}{Back.BLACK}║{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}{Back.BLACK}║{Style.RESET_ALL}   ✅ Tasks Completed: {Fore.GREEN}{self.stats['tasks_completed']}{Style.RESET_ALL}                      {Fore.CYAN}{Back.BLACK}║{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}{Back.BLACK}║{Style.RESET_ALL}   ⛏️  Mining Starts: {Fore.GREEN}{self.stats['mining_starts']}{Style.RESET_ALL}                         {Fore.CYAN}{Back.BLACK}║{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}{Back.BLACK}╚{'═'*50}╝{Style.RESET_ALL}\n")
+    
+    def animate_loading(self, seconds):
+        animation = ["[■□□□□□□□□□]", "[■■□□□□□□□□]", "[■■■□□□□□□□]", "[■■■■□□□□□□]", 
+                    "[■■■■■□□□□□]", "[■■■■■■□□□□]", "[■■■■■■■□□□]", "[■■■■■■■■□□]", 
+                    "[■■■■■■■■■□]", "[■■■■■■■■■■]"]
+        for i in range(seconds * 2):
+            print(f"\r{Fore.CYAN}⏳ Waiting {animation[i % 10]}{Style.RESET_ALL}", end='', flush=True)
+            time.sleep(0.5)
+        print()
+    
+    def run(self):
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print(BANNER)
+        
+        tokens = self.read_tokens()
+        if not tokens:
+            input(f"\n{Fore.RED}Press Enter to exit...{Style.RESET_ALL}")
+            return
+        
+        log.success(f"🎮 Ready with {len(tokens)} warriors")
+        time.sleep(1)
+        
+        cycle = 0
+        while True:
+            cycle += 1
+            print(f"\n{Fore.YELLOW}{Back.BLACK}╔{'═'*60}╗{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}{Back.BLACK}║{Fore.WHITE}{Back.BLACK}🌀 CYCLE #{cycle} - {datetime.now().strftime('%H:%M:%S')}{Style.RESET_ALL}{Fore.YELLOW}{Back.BLACK} {' ' * 40}║{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}{Back.BLACK}╚{'═'*60}╝{Style.RESET_ALL}\n")
+            
+            for idx, token in enumerate(tokens):
+                print(f"{Fore.CYAN}{'┏' + '━'*58 + '┓'}{Style.RESET_ALL}")
+                print(f"{Fore.CYAN}┃{Style.RESET_ALL} {Fore.WHITE}👤 ACCOUNT #{idx+1}{Style.RESET_ALL} {' ' * 45} {Fore.CYAN}┃{Style.RESET_ALL}")
+                print(f"{Fore.CYAN}{'┗' + '━'*58 + '┛'}{Style.RESET_ALL}")
+                
+                mining = self.get_mining_data(token)
+                
+                if mining and 'data' in mining:
+                    balance = mining['data'].get('mUn', 0)
+                    is_mining = mining['data'].get('isMining', False)
+                    
+                    bar_length = 30
+                    filled = int(bar_length * (balance % 1000) / 1000)
+                    bar = '█' * filled + '░' * (bar_length - filled)
+                    
+                    print(f"   {Fore.CYAN}💰 Balance: {Fore.WHITE}{balance:,}{Style.RESET_ALL}")
+                    print(f"   {Fore.CYAN}📊 Mining:  {Fore.GREEN if is_mining else Fore.RED}{'● ACTIVE' if is_mining else '○ INACTIVE'}{Style.RESET_ALL}")
+                    print(f"   {Fore.CYAN}📈 Progress: {Fore.WHITE}[{bar}]{Style.RESET_ALL}\n")
+                    
+                    if not is_mining:
+                        log.mining("Attempting to start mining...")
+                        self.start_mining(token)
+                    
+                    tasks_data = self.get_tasks(token)
+                    if tasks_data and 'data' in tasks_data:
+                        items = tasks_data['data'].get('items', [])
+                        unclaimed = [t for t in items if not t.get('claimed')]
+                        
+                        if unclaimed:
+                            log.task(f"Found {len(unclaimed)} mission{'s' if len(unclaimed)>1 else ''}")
+                            print(f"{Fore.MAGENTA}{'  ┌' + '─'*56 + '┐'}{Style.RESET_ALL}")
+                            
+                            for task in unclaimed:
+                                task_id = task.get('id', '')
+                                task_name = task.get('name', task_id[-8:]).replace('_', ' ').title()
+                                task_reward = task.get('reward', 0)
+                                
+                                print(f"{Fore.MAGENTA}  │{Style.RESET_ALL} {Fore.YELLOW}⚔️  {task_name[:30]:<30}{Style.RESET_ALL} {Fore.GREEN}+{task_reward:<5}{Style.RESET_ALL} {Fore.MAGENTA}│{Style.RESET_ALL}")
+                                if self.claim_task(token, task_id, task_name):
+                                    time.sleep(1.5)
+                            
+                            print(f"{Fore.MAGENTA}  └{'─'*56}┘{Style.RESET_ALL}\n")
+                        else:
+                            log.success("✨ All missions completed!")
+                else:
+                    log.error(f"Account #{idx+1} - Connection failed")
+                
+                print(f"{Fore.CYAN}{'▬'*60}{Style.RESET_ALL}\n")
+                time.sleep(2)
+            
+            self.print_stats()
+            
+            next_time = (datetime.now().timestamp() + 3600)
+            next_str = datetime.fromtimestamp(next_time).strftime('%H:%M:%S')
+            
+            print(f"{Fore.BLUE}{Back.BLACK}╔{'═'*60}╗{Style.RESET_ALL}")
+            print(f"{Fore.BLUE}{Back.BLACK}║{Fore.WHITE}{Back.BLACK}🌙 COOLDOWN MODE - Next Cycle: {next_str}{Style.RESET_ALL}{Fore.BLUE}{Back.BLACK} {' ' * 28}║{Style.RESET_ALL}")
+            print(f"{Fore.BLUE}{Back.BLACK}╚{'═'*60}╝{Style.RESET_ALL}\n")
+            
+            self.animate_loading(60)
 
 if __name__ == "__main__":
     try:
-        bot = Unich()
-        asyncio.run(bot.main())
+        setup_interface()
+        bot = UnichBot()
+        bot.run()
     except KeyboardInterrupt:
-        print(
-            f"{Fore.CYAN + Style.BRIGHT}[ {datetime.now().astimezone(wib).strftime('%x %X %Z')} ]{Style.RESET_ALL}"
-            f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-            f"{Fore.RED + Style.BRIGHT}[ EXIT ] Unich - BOT{Style.RESET_ALL}                                       "                              
-        )
+        print(f"\n\n{Fore.RED}{Back.BLACK}👋 Thanks for using Unich Bot - Created by mejri02{Style.RESET_ALL}\n")
+        sys.exit(0)
+    except Exception as e:
+        log.error(f"Fatal: {str(e)}")
+        time.sleep(5)
